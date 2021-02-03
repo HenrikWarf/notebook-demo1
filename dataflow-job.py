@@ -26,9 +26,9 @@ dep_data_count = (
       |'Read from file' >> beam.io.ReadFromText('gs://crazy-hippo-01/dataflow_beam_data/dept-data.txt')
       |'Select_data' >> beam.Map(selectData)
       |'Filter record on Accounts' >> beam.Filter(filtering)
-      |'Create Dict of Records' >> beam.Map(lambda record : {"name" : record[1], "count" : 1})
+      |'Create Dict of Records' >> beam.Map(lambda record : (record[1], 1))
       |'Apply CombinePerKey on Records' >> beam.CombinePerKey(sum)
-      #|'Make into Dict' >> beam.Map(lambda x: {"name": x[0], "count": x[1]})
+      |'Make into Dict' >> beam.Map(lambda x: {"name": x[0], "count": x[1]})
       #|'Write to Cloud Storage' >> beam.io.WriteToText('gs://crazy-hippo-01/dataflow_beam_data/output_new')
       |'Write to BQ' >> beam.io.WriteToBigQuery(
                                                 table_spec,
