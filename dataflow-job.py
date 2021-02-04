@@ -37,16 +37,5 @@ dep_data_count = (
                                                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
 )
 
-#dep_data_count | beam.io.WriteToBigQuery(
- #   table_spec,
- #   schema=table_schema,
- #   write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
- #   create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
-
-
-#dep_data_count | beam.io.gcp.bigquery.WriteToBigQuery(table_spec,
-#                                         schema=table_schema,
-#                                         write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
-#                                         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
 
 pipeline1.run().wait_until_finish()
