@@ -1,6 +1,6 @@
 # Google Cloud Platform - Notebook Demo
 
-### Demo 1 - Notebook integration with GCP 
+### Demo 1 - Notebook integration with Google Cloud Storage and BigQuery
 
 ### Demo 2 - ETL with Dataflow and Interactive Dataflow notebooks
 
