@@ -13,3 +13,5 @@
 ### Demo 6 - AI Platform Training with Pre-built Algorithms
 
 ### Demo 7 - AI Platform AutoML Tables with Structured Data
+
+### Demo 8 - AI Platform Predictions
