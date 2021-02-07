@@ -11,3 +11,5 @@
 ### Demo 5 - AI Platform Training (Local, Gcloud and GCP)
 
 ### Demo 6 - AI Platform Training with Pre-built Algorithms
+
+### Demo 7 - AI Platform AutoML Tables with Structured Data
