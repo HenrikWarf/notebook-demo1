@@ -1,0 +1,149 @@
+name: Data preparation
+inputs:
+- {name: clean_rows}
+- {name: data_preparation_data}
+- {name: data_validation_artifact}
+outputs:
+- {name: train_rows, type: Integer}
+- {name: test_rows, type: Integer}
+- {name: columns_number, type: Integer}
+- {name: x_train, type: String}
+- {name: x_test, type: String}
+- {name: y_train, type: String}
+- {name: y_test, type: String}
+- {name: x_val, type: String}
+- {name: y_val, type: String}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - |
+      def data_preparation(clean_rows, data_preparation_data, data_validation_artifact):
+          import sys, subprocess;
+          subprocess.run([sys.executable, '-m', 'pip', 'install', 'fs-gcsfs'])
+          subprocess.run([sys.executable, '-m', 'pip', 'install', 'gcsfs'])
+          subprocess.run([sys.executable, '-m', 'pip', 'install', 'pandas'])
+          subprocess.run([sys.executable, '-m', 'pip', 'install', 'scikit-learn'])
+          import pandas as pd
+          from collections import namedtuple
+          import gcsfs
+          import numpy as np
+          from sklearn.model_selection import train_test_split
+          from sklearn import preprocessing
+
+          #Import data
+          data = pd.read_csv(data_preparation_data)
+
+          #Seperate X and y values
+          X = data[['age', 'workclass', 'gender', 'occupation', 'education_num', 'marital_status', 'relationship', 'capital_gain']]
+          y = data[['income_bracket']]
+
+          #One-hot encode data
+          X = pd.get_dummies(X, prefix=['workclass', 'gender','occupation','marital_status','relationship'])
+
+          #Normalize data
+          scaler = preprocessing.MinMaxScaler()
+          X[['age','education_num','capital_gain']] = scaler.fit_transform(X[['age','education_num','capital_gain']])
+
+          #Split data in train and test data
+          X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=42)
+
+          X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+
+          print(X_train.shape)
+          print(X_test.shape)
+          print(y_train.shape)
+          print(y_test.shape)
+          print(X_val.shape)
+          print(y_val.shape)
+
+          #Get row data from training and test data sets
+          train_rows = int(len(X_train))
+          test_rows = int(len(X_test))
+          columns_number = int(len(X_train.columns))
+          val_rows = int(len(X_val))
+
+          #Save training and test datasets in bucket
+          x_train = X_train.to_csv(r'gs://crazy-hippo-01/dataset/x_train.csv', index = False, header=True)
+          x_test = X_test.to_csv(r'gs://crazy-hippo-01/dataset/x_test.csv', index = False, header=True)
+          y_train = y_train.to_csv(r'gs://crazy-hippo-01/dataset/y_train.csv', index = False, header=True)
+          y_test = y_test.to_csv(r'gs://crazy-hippo-01/dataset/y_test.csv', index = False, header=True)
+          x_val = X_val.to_csv(r'gs://crazy-hippo-01/dataset/x_val.csv', index = False, header=True)
+          y_val = y_val.to_csv(r'gs://crazy-hippo-01/dataset/y_val.csv', index = False, header=True)
+
+          x_train = 'gs://crazy-hippo-01/dataset/x_train.csv'
+          x_test = 'gs://crazy-hippo-01/dataset/x_test.csv'
+          y_train = 'gs://crazy-hippo-01/dataset/y_train.csv'
+          y_test = 'gs://crazy-hippo-01/dataset/y_test.csv'
+          x_val = 'gs://crazy-hippo-01/dataset/x_val.csv'
+          y_val = 'gs://crazy-hippo-01/dataset/y_val.csv'
+
+          return(train_rows, test_rows, columns_number, x_train, x_test, y_train, y_test, x_val, y_val)
+
+      def _serialize_int(int_value: int) -> str:
+          if isinstance(int_value, str):
+              return int_value
+          if not isinstance(int_value, int):
+              raise TypeError('Value "{}" has type "{}" instead of int.'.format(str(int_value), str(type(int_value))))
+          return str(int_value)
+
+      def _serialize_str(str_value: str) -> str:
+          if not isinstance(str_value, str):
+              raise TypeError('Value "{}" has type "{}" instead of str.'.format(str(str_value), str(type(str_value))))
+          return str_value
+
+      import argparse
+      _parser = argparse.ArgumentParser(prog='Data preparation', description='')
+      _parser.add_argument("--clean-rows", dest="clean_rows", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--data-preparation-data", dest="data_preparation_data", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--data-validation-artifact", dest="data_validation_artifact", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("----output-paths", dest="_output_paths", type=str, nargs=9)
+      _parsed_args = vars(_parser.parse_args())
+      _output_files = _parsed_args.pop("_output_paths", [])
+
+      _outputs = data_preparation(**_parsed_args)
+
+      _output_serializers = [
+          _serialize_int,
+          _serialize_int,
+          _serialize_int,
+          _serialize_str,
+          _serialize_str,
+          _serialize_str,
+          _serialize_str,
+          _serialize_str,
+          _serialize_str,
+
+      ]
+
+      import os
+      for idx, output_file in enumerate(_output_files):
+          try:
+              os.makedirs(os.path.dirname(output_file))
+          except OSError:
+              pass
+          with open(output_file, 'w') as f:
+              f.write(_output_serializers[idx](_outputs[idx]))
+    args:
+    - --clean-rows
+    - {inputValue: clean_rows}
+    - --data-preparation-data
+    - {inputValue: data_preparation_data}
+    - --data-validation-artifact
+    - {inputValue: data_validation_artifact}
+    - '----output-paths'
+    - {outputPath: train_rows}
+    - {outputPath: test_rows}
+    - {outputPath: columns_number}
+    - {outputPath: x_train}
+    - {outputPath: x_test}
+    - {outputPath: y_train}
+    - {outputPath: y_test}
+    - {outputPath: x_val}
+    - {outputPath: y_val}

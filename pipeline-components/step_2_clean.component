@@ -1,0 +1,60 @@
+name: Clean data
+inputs:
+- {name: step_one_output_data}
+- {name: raw_rows}
+outputs:
+- {name: clean_rows, type: Integer}
+- {name: data_preparation_data, type: String}
+- {name: data_validation_artifact, type: String}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def clean_data(step_one_output_data, raw_rows):\n    #import libraries\n  \
+      \  import sys, subprocess;\n    subprocess.run([sys.executable, '-m', 'pip',\
+      \ 'install', 'fs-gcsfs'])\n    subprocess.run([sys.executable, '-m', 'pip',\
+      \ 'install', 'gcsfs'])\n    subprocess.run([sys.executable, '-m', 'pip', 'install',\
+      \ 'pandas'])\n    import pandas as pd\n    from collections import namedtuple\n\
+      \    import gcsfs\n\n    data = pd.read_csv(step_one_output_data)\n\n    #Remove\
+      \ null values from workclass\n    null = data['workclass'].isna()\n    clean_data\
+      \ = data[-null] \n    rows_clean_data = int(len(clean_data))\n\n    #Remove\
+      \ columns\n    final_df = clean_data[['age', 'workclass', 'gender', 'occupation',\
+      \ 'education_num', 'marital_status', \n                           'relationship',\
+      \ 'capital_gain', 'income_bracket']]\n\n    #Write df to csv in storage bucket\n\
+      \    write_to_storage = final_df.to_csv('gs://crazy-hippo-01/dataset/census_step_two.csv',\
+      \ index = False, header=True)\n    write_artifact_to_storage = final_df.to_csv('gs://crazy-hippo-01/dataset/artifact_validation.csv',\
+      \ index = False, header=False)\n\n    data_preparation_data = 'gs://crazy-hippo-01/dataset/census_step_two.csv'\n\
+      \    data_validation_artifact = 'gs://crazy-hippo-01/dataset/artifact_validation.csv'\n\
+      \n    #Return number of rows\n    return(rows_clean_data, data_preparation_data,\
+      \ data_validation_artifact)\n\ndef _serialize_int(int_value: int) -> str:\n\
+      \    if isinstance(int_value, str):\n        return int_value\n    if not isinstance(int_value,\
+      \ int):\n        raise TypeError('Value \"{}\" has type \"{}\" instead of int.'.format(str(int_value),\
+      \ str(type(int_value))))\n    return str(int_value)\n\ndef _serialize_str(str_value:\
+      \ str) -> str:\n    if not isinstance(str_value, str):\n        raise TypeError('Value\
+      \ \"{}\" has type \"{}\" instead of str.'.format(str(str_value), str(type(str_value))))\n\
+      \    return str_value\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Clean\
+      \ data', description='')\n_parser.add_argument(\"--step-one-output-data\", dest=\"\
+      step_one_output_data\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--raw-rows\", dest=\"raw_rows\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"----output-paths\", dest=\"\
+      _output_paths\", type=str, nargs=3)\n_parsed_args = vars(_parser.parse_args())\n\
+      _output_files = _parsed_args.pop(\"_output_paths\", [])\n\n_outputs = clean_data(**_parsed_args)\n\
+      \n_output_serializers = [\n    _serialize_int,\n    _serialize_str,\n    _serialize_str,\n\
+      \n]\n\nimport os\nfor idx, output_file in enumerate(_output_files):\n    try:\n\
+      \        os.makedirs(os.path.dirname(output_file))\n    except OSError:\n  \
+      \      pass\n    with open(output_file, 'w') as f:\n        f.write(_output_serializers[idx](_outputs[idx]))\n"
+    args:
+    - --step-one-output-data
+    - {inputValue: step_one_output_data}
+    - --raw-rows
+    - {inputValue: raw_rows}
+    - '----output-paths'
+    - {outputPath: clean_rows}
+    - {outputPath: data_preparation_data}
+    - {outputPath: data_validation_artifact}

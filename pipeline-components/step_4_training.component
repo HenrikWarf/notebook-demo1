@@ -1,0 +1,154 @@
+name: Model training
+inputs:
+- {name: EPOCHS, type: Integer}
+- {name: BATCH_SIZE, type: Integer}
+- {name: VERBOSE, type: Integer}
+- {name: NB_CLASSES, type: Integer}
+- {name: N_HIDDEN, type: Integer}
+- {name: INPUT_SHAPE, type: Integer}
+- {name: x_train, type: String}
+- {name: x_test, type: String}
+- {name: y_train, type: String}
+- {name: y_test, type: String}
+- {name: x_val, type: String}
+- {name: y_val, type: String}
+- {name: train_rows, type: Integer}
+- {name: test_rows, type: Integer}
+outputs:
+- {name: test_loss, type: Float}
+- {name: test_acc, type: Float}
+- {name: export_path, type: String}
+- {name: mlpipeline_ui_metadata, type: UI_metadata}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def model_training(EPOCHS,\n                     BATCH_SIZE,\n            \
+      \         VERBOSE,\n                     NB_CLASSES,\n                     N_HIDDEN,\n\
+      \                     #VALIDATION_SPLIT : float,\n                     INPUT_SHAPE,\n\
+      \                     x_train, \n                     x_test, \n           \
+      \          y_train, \n                     y_test,\n                     x_val,\n\
+      \                     y_val,\n                     train_rows, \n          \
+      \           test_rows):  \n\n    import sys, subprocess;\n    subprocess.run([sys.executable,\
+      \ '-m', 'pip', 'install', 'fs-gcsfs'])\n    subprocess.run([sys.executable,\
+      \ '-m', 'pip', 'install', 'gcsfs'])\n    subprocess.run([sys.executable, '-m',\
+      \ 'pip', 'install', 'pandas'])\n    subprocess.run([sys.executable, '-m', 'pip',\
+      \ 'install', 'scikit-learn'])\n    subprocess.run([sys.executable, '-m', 'pip',\
+      \ 'install', 'tensorflow==2.0.0b0'])\n    #subprocess.run([sys.executable, '-q',\
+      \ 'pip', 'install', 'pyyaml', 'h5py'])\n    from collections import namedtuple\n\
+      \    import gcsfs\n    import numpy as np\n    import pandas as pd\n    from\
+      \ sklearn.model_selection import train_test_split\n    from sklearn import preprocessing\n\
+      \    import tensorflow as tf\n    from tensorflow import keras\n    from tensorflow.keras\
+      \ import layers\n    from tensorflow.python.lib.io import file_io\n    import\
+      \ datetime\n    import json\n\n    print('imports done')\n\n    print(tf.__version__)\n\
+      \n    print('Loading data...')\n    X_train = pd.read_csv(x_train)\n    X_test\
+      \ = pd.read_csv(x_test)\n    y_train = pd.read_csv(y_train)\n    y_test = pd.read_csv(y_test)\n\
+      \    x_val = pd.read_csv(x_val)\n    y_val = pd.read_csv(y_val)\n    print('Data\
+      \ uploaded')\n\n    print(X_test.shape, y_test.shape)\n\n    #Create a Tensorflow\
+      \ dataset\n    print('Creating tensorflow datasets')\n    training_dataset =\
+      \ tf.data.Dataset.from_tensor_slices((X_train.values, y_train.values))\n   \
+      \ test_dataset = tf.data.Dataset.from_tensor_slices((X_test.values, y_test.values))\n\
+      \    validation_dataset = tf.data.Dataset.from_tensor_slices((x_val.values,\
+      \ y_val.values))\n\n    training_dataset = training_dataset.shuffle(len(X_train)).batch(BATCH_SIZE)\n\
+      \    test_dataset = test_dataset.shuffle(len(X_test)).batch(BATCH_SIZE)\n  \
+      \  validation_dataset = validation_dataset.shuffle(len(x_val)).batch(BATCH_SIZE)\n\
+      \n    #Tensorboard\n    log_dir = \"gs://crazy-hippo-01/dataset/logs/\"\n\n\
+      \    #build the model\n    model = tf.keras.Sequential([\n        layers.Dense(5,input_shape=(40,),\
+      \ activation='relu'),\n        #layers.Dense(10, activation='relu'),\n     \
+      \   layers.Dense(2, name='dense_layer_output', activation='sigmoid')\n     \
+      \ ])\n\n    model.compile(optimizer=tf.keras.optimizers.Adam(0.01),\n      \
+      \              #optimizer='SGD',\n                    loss=keras.losses.BinaryCrossentropy(from_logits=True),\n\
+      \                    #loss='categorical_crossentropy',\n                   \
+      \ #loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),\n    \
+      \                #loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),\n\
+      \                    metrics=['accuracy'])\n\n    #Train model\n    model.fit(training_dataset,\
+      \ \n              epochs= EPOCHS,\n              verbose=VERBOSE, \n       \
+      \       #steps_per_epoch=10,\n              #validation_steps=10, \n       \
+      \       validation_data=validation_dataset, \n              callbacks= [\n \
+      \                 tf.keras.callbacks.TensorBoard(log_dir=log_dir + datetime.datetime.now().date().__str__()),\n\
+      \                  tf.keras.callbacks.EarlyStopping(patience=5, monitor='val_loss')\n\
+      \              ]\n)\n\n    #Metadata for Tensorboard\n    metadata = {'outputs'\
+      \ : [{\n        'type': 'tensorboard',\n        'source': log_dir,\n       \
+      \ }]\n    }\n\n    with file_io.FileIO('/mlpipeline-ui-metadata.json', 'w')\
+      \ as f:\n        json.dump(metadata, f)\n\n    #Save model in bucket    \n \
+      \   #export_path = tf.contrib.saved_model.save_keras_model(\n    #    model,\
+      \ 'gs://crazy-hippo-01/dataset/census_tf_model')\n    #export_path = export_path.decode('utf-8')\n\
+      \n    model.save('gs://crazy-hippo-01/dataset/census_tf_model')\n\n    export_path\
+      \ = 'gs://crazy-hippo-01/dataset/census_tf_model'\n\n    print('Model Saved.')\n\
+      \n    #Create evaluation metrics and save to variables\n    test_loss, test_acc\
+      \ = model.evaluate(test_dataset, steps=20)\n\n    test_loss = float(test_loss)\n\
+      \    test_acc = float(test_acc)\n\n    return(test_loss, test_acc, export_path,\
+      \ json.dumps(metadata))\n\ndef _serialize_float(float_value: float) -> str:\n\
+      \    if isinstance(float_value, str):\n        return float_value\n    if not\
+      \ isinstance(float_value, (float, int)):\n        raise TypeError('Value \"\
+      {}\" has type \"{}\" instead of float.'.format(str(float_value), str(type(float_value))))\n\
+      \    return str(float_value)\n\ndef _serialize_str(str_value: str) -> str:\n\
+      \    if not isinstance(str_value, str):\n        raise TypeError('Value \"{}\"\
+      \ has type \"{}\" instead of str.'.format(str(str_value), str(type(str_value))))\n\
+      \    return str_value\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Model\
+      \ training', description='')\n_parser.add_argument(\"--EPOCHS\", dest=\"EPOCHS\"\
+      , type=int, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --BATCH-SIZE\", dest=\"BATCH_SIZE\", type=int, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--VERBOSE\", dest=\"VERBOSE\", type=int, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--NB-CLASSES\", dest=\"\
+      NB_CLASSES\", type=int, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --N-HIDDEN\", dest=\"N_HIDDEN\", type=int, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--INPUT-SHAPE\", dest=\"INPUT_SHAPE\", type=int, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--x-train\", dest=\"x_train\"\
+      , type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --x-test\", dest=\"x_test\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--y-train\", dest=\"y_train\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--y-test\", dest=\"y_test\"\
+      , type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --x-val\", dest=\"x_val\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--y-val\", dest=\"y_val\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--train-rows\", dest=\"train_rows\", type=int, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--test-rows\", dest=\"\
+      test_rows\", type=int, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      ----output-paths\", dest=\"_output_paths\", type=str, nargs=4)\n_parsed_args\
+      \ = vars(_parser.parse_args())\n_output_files = _parsed_args.pop(\"_output_paths\"\
+      , [])\n\n_outputs = model_training(**_parsed_args)\n\n_output_serializers =\
+      \ [\n    _serialize_float,\n    _serialize_float,\n    _serialize_str,\n   \
+      \ str,\n\n]\n\nimport os\nfor idx, output_file in enumerate(_output_files):\n\
+      \    try:\n        os.makedirs(os.path.dirname(output_file))\n    except OSError:\n\
+      \        pass\n    with open(output_file, 'w') as f:\n        f.write(_output_serializers[idx](_outputs[idx]))\n"
+    args:
+    - --EPOCHS
+    - {inputValue: EPOCHS}
+    - --BATCH-SIZE
+    - {inputValue: BATCH_SIZE}
+    - --VERBOSE
+    - {inputValue: VERBOSE}
+    - --NB-CLASSES
+    - {inputValue: NB_CLASSES}
+    - --N-HIDDEN
+    - {inputValue: N_HIDDEN}
+    - --INPUT-SHAPE
+    - {inputValue: INPUT_SHAPE}
+    - --x-train
+    - {inputValue: x_train}
+    - --x-test
+    - {inputValue: x_test}
+    - --y-train
+    - {inputValue: y_train}
+    - --y-test
+    - {inputValue: y_test}
+    - --x-val
+    - {inputValue: x_val}
+    - --y-val
+    - {inputValue: y_val}
+    - --train-rows
+    - {inputValue: train_rows}
+    - --test-rows
+    - {inputValue: test_rows}
+    - '----output-paths'
+    - {outputPath: test_loss}
+    - {outputPath: test_acc}
+    - {outputPath: export_path}
+    - {outputPath: mlpipeline_ui_metadata}
