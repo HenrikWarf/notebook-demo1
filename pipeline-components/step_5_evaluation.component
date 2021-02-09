@@ -23,7 +23,7 @@ implementation:
       )\n    metrics = {\n    'metrics': [\n        {\n          'name': 'loss-value',\
       \ # The name of the metric. Visualized as the column name in the runs table.\n\
       \          'numberValue': test_loss, # The value of the metric. Must be a numeric\
-      \ value.\n          'format': \"RAW\"   # The optional format of the metric.\
+      \ value.\n          'format': \"RAW\"   # The optional format of the metric.*\
       \ Supported values are \"RAW\" (displayed in raw format) and \"PERCENTAGE\"\
       \ (displayed in percentage format).\n        },\n        {\n          'name':\
       \ 'accuracy-score', # The name of the metric. Visualized as the column name\
@@ -31,18 +31,18 @@ implementation:
       \ metric. Must be a numeric value.\n          'format': \"PERCENTAGE\" \n  \
       \      }]\n    }\n    #Write JSON dump file\n    with file_io.FileIO('/mlpipeline-metrics.json',\
       \ 'w') as f:\n        json.dump(metrics, f)\n\n    print(\"JSON dump done\"\
-      )\n\n    return(json.dumps(metrics))\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Model\
-      \ evaluation', description='')\n_parser.add_argument(\"--test-loss\", dest=\"\
-      test_loss\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
-      --test-acc\", dest=\"test_acc\", type=str, required=True, default=argparse.SUPPRESS)\n\
-      _parser.add_argument(\"--export-path\", dest=\"export_path\", type=str, required=True,\
-      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"----output-paths\", dest=\"\
-      _output_paths\", type=str, nargs=1)\n_parsed_args = vars(_parser.parse_args())\n\
-      _output_files = _parsed_args.pop(\"_output_paths\", [])\n\n_outputs = model_evaluation(**_parsed_args)\n\
-      \n_output_serializers = [\n    str,\n\n]\n\nimport os\nfor idx, output_file\
-      \ in enumerate(_output_files):\n    try:\n        os.makedirs(os.path.dirname(output_file))\n\
-      \    except OSError:\n        pass\n    with open(output_file, 'w') as f:\n\
-      \        f.write(_output_serializers[idx](_outputs[idx]))\n"
+      )\n\n    return(metrics, json.dumps(metrics))\n\nimport argparse\n_parser =\
+      \ argparse.ArgumentParser(prog='Model evaluation', description='')\n_parser.add_argument(\"\
+      --test-loss\", dest=\"test_loss\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--test-acc\", dest=\"test_acc\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--export-path\", dest=\"\
+      export_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      ----output-paths\", dest=\"_output_paths\", type=str, nargs=1)\n_parsed_args\
+      \ = vars(_parser.parse_args())\n_output_files = _parsed_args.pop(\"_output_paths\"\
+      , [])\n\n_outputs = model_evaluation(**_parsed_args)\n\n_output_serializers\
+      \ = [\n    str,\n\n]\n\nimport os\nfor idx, output_file in enumerate(_output_files):\n\
+      \    try:\n        os.makedirs(os.path.dirname(output_file))\n    except OSError:\n\
+      \        pass\n    with open(output_file, 'w') as f:\n        f.write(_output_serializers[idx](_outputs[idx]))\n"
     args:
     - --test-loss
     - {inputValue: test_loss}

@@ -34,46 +34,18 @@ def create_dnn_model(INPUTS, NUMERIC_COLS, CATEGORICAL_COLS):
     
     #Define Input Features
     INPUTS = INPUTS
-    #NUMERIC_INPUTS = NUMERIC_COLS
-    #CATEGORICAL_INPUTS = CATEGORICAL_COLS
     
     #Set up feature columns list
     feature_columns = []
     feature_layer_inputs = {}
-
-    #categorical_features = {
-    #thal = feature_column.categorical_column_with_vocabulary_list(
-    #  'thal', ['fixed', 'normal', 'reversible'])
-    #    colname : tf.feature_column.indicator_column(colname)
-    #    for colname in CATEGORICAL_INPUTS
-    #}
-    
-    #Add numeric columns to list
-    #numeric_columns = {
-    #    colname : tf.feature_column.numeric_column(colname)  
-    #        for colname in INPUTS
-    #}
     
     for colname in INPUTS:
         feature_columns.append(tf.feature_column.numeric_column(colname))
         feature_layer_inputs[colname] = tf.keras.Input(shape=(1,), name=colname) 
         
-        #feature_layer_inputs[header] = tf.keras.Input(shape=(1,), name=header)
-
-
-    #feature_columns.append(numeric_columns)    
-    
-    #Define all the inputs
-    #inputs = {
-    #    colname : tf.keras.layers.Input(name=colname, shape=(1,), dtype=tf.float32)  
-    #        for colname in INPUTS
-    #}
     
     feature_layer = tf.keras.layers.DenseFeatures(feature_columns)
     dnn_input = feature_layer(feature_layer_inputs)
-        
-    #Inputs to model
-    #dnn_input = tf.keras.layers.DenseFeatures(feature_columns[0].values())(inputs)
     
     #Layer One
     h1 = tf.keras.layers.Dense(32, activation='relu', name='h1')(dnn_input)

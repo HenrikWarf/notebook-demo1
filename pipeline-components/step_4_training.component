@@ -84,10 +84,10 @@ implementation:
       \n    #Create evaluation metrics and save to variables\n    test_loss, test_acc\
       \ = model.evaluate(test_dataset, steps=20)\n\n    test_loss = float(test_loss)\n\
       \    test_acc = float(test_acc)\n\n    return(test_loss, test_acc, export_path,\
-      \ json.dumps(metadata))\n\ndef _serialize_float(float_value: float) -> str:\n\
-      \    if isinstance(float_value, str):\n        return float_value\n    if not\
-      \ isinstance(float_value, (float, int)):\n        raise TypeError('Value \"\
-      {}\" has type \"{}\" instead of float.'.format(str(float_value), str(type(float_value))))\n\
+      \ metadata, json.dumps(metadata))\n\ndef _serialize_float(float_value: float)\
+      \ -> str:\n    if isinstance(float_value, str):\n        return float_value\n\
+      \    if not isinstance(float_value, (float, int)):\n        raise TypeError('Value\
+      \ \"{}\" has type \"{}\" instead of float.'.format(str(float_value), str(type(float_value))))\n\
       \    return str(float_value)\n\ndef _serialize_str(str_value: str) -> str:\n\
       \    if not isinstance(str_value, str):\n        raise TypeError('Value \"{}\"\
       \ has type \"{}\" instead of str.'.format(str(str_value), str(type(str_value))))\n\
