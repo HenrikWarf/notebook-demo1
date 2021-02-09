@@ -23,3 +23,6 @@ This notebook focuses on using AutoML Tables to train a classification model usi
 
 ### Demo 8 - AI Platform Predictions
 Here we deploy a model to AI Platform Predictions and perform a simple online inference. 
+
+### Demo 9 - AI Platform Pipelines
+In this notebook we set up and build a ML pipline using AI Platform Pipelines (based on Kubeflow) using Python Lightweight components. 
