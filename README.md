@@ -33,5 +33,8 @@ This notebook shows a simple example using scikit-learn to create a logistic reg
 ### Demo 12 - ML Pipeline Example with Cloud Composer and BigQuery ML
 Here we show how to create a machine learning pipeline including BQ transformations, model training and evaluation. 
 
+### Demo 13 - In progress...
+Work in progress
+
 ### Demo 14 - AI Platform Pipelines with Tensorflow Extended
 In this notebook we create a TFX pipeline that we execute in AI Platform Pipeline
