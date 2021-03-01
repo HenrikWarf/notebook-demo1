@@ -119,9 +119,7 @@ def create_tfx_pipeline(
 
 
     components=[
-        example_gen, statistics_gen, schema_gen, example_validator, transform,
-        latest_model_resolver, 
-        trainer, model_resolver, evaluator, pusher
+        example_gen, statistics_gen, schema_gen, example_validator, transform, trainer, pusher
     ]
 
     return tfx_pipeline.Pipeline(
@@ -145,6 +143,7 @@ client = client.Client(project_id=PROJECT_ID, region=REGION, api_key=API_KEY)
 config = kubeflow_v2_dag_runner.KubeflowV2DagRunnerConfig(
     project_id=PROJECT_ID,
     display_name=PIPELINE_NAME)
+
 runner = kubeflow_v2_dag_runner.KubeflowV2DagRunner(
     config=config,
     output_filename='pipeline.json')
