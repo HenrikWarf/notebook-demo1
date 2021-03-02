@@ -27,8 +27,8 @@ Here we deploy a model to AI Platform Predictions and perform a simple online in
 ### Demo 9 - AI Platform Pipelines
 In this notebook we set up and build a ML pipline using AI Platform Pipelines (based on Kubeflow) using Python Lightweight components. 
 
-### Demo 10 - Simple Scikit-learn Logistic Regression Example
-This notebook shows a simple example using scikit-learn to create a logistic regression model
+### Demo 10 - Two Scikit-learn Example (Log Regression + Pipeline)
+This notebook shows two simple machine learning examples using scikit-learn as well as how to deploy a model to AI Platform. 
 
 ### Demo 12 - ML Pipeline Example with Cloud Composer and BigQuery ML
 Here we show how to create a machine learning pipeline including BQ transformations, model training and evaluation. 
