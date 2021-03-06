@@ -38,3 +38,9 @@ Work in progress
 
 ### Demo 14 - AI Platform Pipelines with Tensorflow Extended
 In this notebook we create a TFX pipeline that we execute in AI Platform Pipeline
+
+### Demo 15 - Image Classification with Fashion mnist dataset
+Notebook covers an introdution to image classification with the use of Tensorflow and the Fashion mnist dataset
+
+### Demo 16 - Tensorflow Regression and Classification 
+Here we create a very simple regression model and then move to a binary classification model all using Tensorflow 
