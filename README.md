@@ -44,3 +44,6 @@ Notebook covers an introdution to image classification with the use of Tensorflo
 
 ### Demo 16 - Tensorflow Regression and Classification 
 Here we create a very simple regression model and then move to a binary classification model all using Tensorflow 
+
+### Demo 17 - AI Platform Pipelines (Hosted) using Kubeflow as Framework 
+Binary classification model using tensorflowm and creating pipeline with kubeflow pipelines. 
