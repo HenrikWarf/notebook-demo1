@@ -1,0 +1,77 @@
+name: Evaluate validate model
+inputs:
+- {name: saved_model}
+- {name: test_dataset}
+- {name: pipeline}
+- {name: framework}
+outputs:
+- {name: mlpipeline_metrics, type: Metrics}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas==0.24' 'google-cloud-bigquery' 'pyarrow' 'gcsfs' 'tensorflow' || PIP_DISABLE_PIP_VERSION_CHECK=1
+      python3 -m pip install --quiet --no-warn-script-location 'pandas==0.24' 'google-cloud-bigquery'
+      'pyarrow' 'gcsfs' 'tensorflow' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def evaluate_validate_model(saved_model, test_dataset, pipeline, framework):\n\
+      \n    import pandas as pd\n    import tensorflow as tf\n    from tensorflow\
+      \ import keras\n\n    print(saved_model, test_dataset, pipeline, framework)\n\
+      \n    #HELPER FUNCTION - TENSORFLOW DATASET FUNCTION\n    def helperfunc_create_dataset(dataframe,\
+      \ shuffle=True, batch_size=5):\n        dataframe = dataframe.copy()\n     \
+      \   labels = dataframe.pop('income_bracket')\n        ds = tf.data.Dataset.from_tensor_slices((dict(dataframe),\
+      \ labels))\n        if shuffle:\n            ds = ds.shuffle(buffer_size=len(dataframe))\n\
+      \        ds = ds.batch(batch_size)\n        ds = ds.prefetch(batch_size)\n \
+      \       return ds\n\n    #LOAD TRAINED MODEL FROM ARTIFACT STORE\n    reloaded_model\
+      \ = tf.keras.models.load_model(saved_model)\n\n    #READ TESTING DATASET\n \
+      \   TESTING_DATA = pd.read_csv(test_dataset)\n\n    #SET BATCG SIZE\n    BATCH_SIZE\
+      \ = 32\n\n    #CALL HELPER FUNCTION TO CREATE TENSORFLOW DATASET\n    TESTING_DS\
+      \ = helperfunc_create_dataset(TESTING_DATA, shuffle=False, batch_size=BATCH_SIZE)\n\
+      \n    #EVALUATE MODEL WITH TEST DATA\n    loss, accuracy = reloaded_model.evaluate(TESTING_DS)\n\
+      \n    #PRINT ACCURACY METRIC\n    print(\"Accuracy\", accuracy)\n    print(\"\
+      Loss\", loss)\n\n    from tensorflow.python.lib.io import file_io\n    import\
+      \ json\n\n    metrics = {\n      'metrics': [{\n          'name': 'accuracy',\n\
+      \          'numberValue':  accuracy,\n          'format': \"PERCENTAGE\",\n\
+      \        },{\n          'name': 'loss',\n          'numberValue':  float(loss),\n\
+      \    }]}\n\n    #Write Metrics to BigQuery Table for Validation and possible\
+      \ promotion to Deployment\n    from google.cloud.bigquery import Client, QueryJobConfig\n\
+      \n    #Initiate BigQuery Client\n    client = Client()\n\n    #Define DML Query\
+      \ to Insert Metrics into BugQuery\n    query = \"\"\"INSERT `crazy-hippo-01.census_data_us.model_metrics_history`\
+      \ (model_name, pipeline, framework, accuracy, loss)\n    VALUES (\"{}\", \"\
+      {}\", \"{}\", {}, {})  \n    \"\"\".format(saved_model, pipeline, framework,\
+      \ accuracy, loss)\n\n    #Run Query\n    job = client.query(query)\n\n    #Define\
+      \ outputs with namedtuple\n    from collections import namedtuple\n\n    return_values\
+      \ = namedtuple(\n      'ComponentOutputs',\n        ['mlpipeline_metrics'])\n\
+      \n    return return_values(json.dumps(metrics))\n\nimport argparse\n_parser\
+      \ = argparse.ArgumentParser(prog='Evaluate validate model', description='')\n\
+      _parser.add_argument(\"--saved-model\", dest=\"saved_model\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--test-dataset\", dest=\"\
+      test_dataset\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --pipeline\", dest=\"pipeline\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--framework\", dest=\"framework\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"----output-paths\", dest=\"\
+      _output_paths\", type=str, nargs=1)\n_parsed_args = vars(_parser.parse_args())\n\
+      _output_files = _parsed_args.pop(\"_output_paths\", [])\n\n_outputs = evaluate_validate_model(**_parsed_args)\n\
+      \n_output_serializers = [\n    str,\n\n]\n\nimport os\nfor idx, output_file\
+      \ in enumerate(_output_files):\n    try:\n        os.makedirs(os.path.dirname(output_file))\n\
+      \    except OSError:\n        pass\n    with open(output_file, 'w') as f:\n\
+      \        f.write(_output_serializers[idx](_outputs[idx]))\n"
+    args:
+    - --saved-model
+    - {inputValue: saved_model}
+    - --test-dataset
+    - {inputValue: test_dataset}
+    - --pipeline
+    - {inputValue: pipeline}
+    - --framework
+    - {inputValue: framework}
+    - '----output-paths'
+    - {outputPath: mlpipeline_metrics}

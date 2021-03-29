@@ -1,0 +1,57 @@
+name: Read transform data
+outputs:
+- {name: training_data, type: String}
+- {name: test_data, type: String}
+- {name: validation_data, type: String}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas==0.24' 'google-cloud-bigquery' 'pyarrow' 'gcsfs' 'sklearn' || PIP_DISABLE_PIP_VERSION_CHECK=1
+      python3 -m pip install --quiet --no-warn-script-location 'pandas==0.24' 'google-cloud-bigquery'
+      'pyarrow' 'gcsfs' 'sklearn' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def read_transform_data():\n\n    #Import libraries\n    import pandas as pd\n\
+      \    import time\n    from sklearn.model_selection import train_test_split\n\
+      \    from google.cloud.bigquery import Client, QueryJobConfig\n\n    #Initiate\
+      \ BigQuery Client\n    client = Client()\n\n    query = \"\"\"SELECT age, workclass,\
+      \ occupation, education_num, marital_status, capital_gain, income_bracket\n\
+      \    FROM `crazy-hippo-01.census_data_us.census_raw` \n    \"\"\"\n    #Run\
+      \ Query\n    job = client.query(query)\n    df = job.to_dataframe()\n\n    #Drop\
+      \ null values in dataset\n    df = df.dropna()\n\n    #Create training, test\
+      \ and validation datasets\n    train, test = train_test_split(df, test_size=0.20,\
+      \ random_state=42)\n    train, val = train_test_split(train, test_size=0.20,\
+      \ random_state=42)\n\n    #Define Staging Bucket in GCS\n    BUCKET = 'gcs://crazy-hippo-01/kubeflow_staging/'\n\
+      \n    #Define Datasets Names\n    TRAIN_DATA = BUCKET + 'datasets/training/training{}'.format(str(int(time.time())))\
+      \  + '.csv'\n    TEST_DATA = BUCKET + 'datasets/testing/test{}'.format(str(int(time.time())))\
+      \  + '.csv'\n    VALIDATION_DATA = BUCKET + 'datasets/validation/validation{}'.format(str(int(time.time())))\
+      \  + '.csv'\n\n    #Write data to GCS Storage\n    train.to_csv(TRAIN_DATA,\
+      \ index=False, header=True)\n    test.to_csv(TEST_DATA, index=False, header=True)\n\
+      \    val.to_csv(VALIDATION_DATA, index=False, header=True)\n\n    #Define outputs\
+      \ with namedtuple\n    from collections import namedtuple\n\n    return_values\
+      \ = namedtuple(\n      'ComponentOutputs',\n        ['training_data', 'test_data',\
+      \ 'validation_data'])\n\n    return return_values(TRAIN_DATA, TEST_DATA, VALIDATION_DATA)\n\
+      \ndef _serialize_str(str_value: str) -> str:\n    if not isinstance(str_value,\
+      \ str):\n        raise TypeError('Value \"{}\" has type \"{}\" instead of str.'.format(str(str_value),\
+      \ str(type(str_value))))\n    return str_value\n\nimport argparse\n_parser =\
+      \ argparse.ArgumentParser(prog='Read transform data', description='')\n_parser.add_argument(\"\
+      ----output-paths\", dest=\"_output_paths\", type=str, nargs=3)\n_parsed_args\
+      \ = vars(_parser.parse_args())\n_output_files = _parsed_args.pop(\"_output_paths\"\
+      , [])\n\n_outputs = read_transform_data(**_parsed_args)\n\n_output_serializers\
+      \ = [\n    _serialize_str,\n    _serialize_str,\n    _serialize_str,\n\n]\n\n\
+      import os\nfor idx, output_file in enumerate(_output_files):\n    try:\n   \
+      \     os.makedirs(os.path.dirname(output_file))\n    except OSError:\n     \
+      \   pass\n    with open(output_file, 'w') as f:\n        f.write(_output_serializers[idx](_outputs[idx]))\n"
+    args:
+    - '----output-paths'
+    - {outputPath: training_data}
+    - {outputPath: test_data}
+    - {outputPath: validation_data}

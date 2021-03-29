@@ -1,0 +1,68 @@
+name: Evaluate validate model
+inputs:
+- {name: saved_model}
+- {name: test_dataset}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas==0.24' 'pyarrow' 'gcsfs' 'tensorflow' || PIP_DISABLE_PIP_VERSION_CHECK=1
+      python3 -m pip install --quiet --no-warn-script-location 'pandas==0.24' 'pyarrow'
+      'gcsfs' 'tensorflow' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - |
+      def evaluate_validate_model(saved_model, test_dataset):
+
+          import pandas as pd
+          import tensorflow as tf
+          from tensorflow import keras
+
+          #HELPER FUNCTION - TENSORFLOW DATASET FUNCTION
+          def helperfunc_create_dataset(dataframe, shuffle=True, batch_size=5):
+              dataframe = dataframe.copy()
+              labels = dataframe.pop('income_bracket')
+              ds = tf.data.Dataset.from_tensor_slices((dict(dataframe), labels))
+              if shuffle:
+                  ds = ds.shuffle(buffer_size=len(dataframe))
+              ds = ds.batch(batch_size)
+              ds = ds.prefetch(batch_size)
+              return ds
+
+          #LOAD TRAINED MODEL FROM ARTIFACT STORE
+          reloaded_model = tf.keras.models.load_model(saved_model)
+
+          #READ TESTING DATASET
+          TESTING_DATA = pd.read_csv(test_dataset)
+
+          #SET BATCG SIZE
+          BATCH_SIZE = 32
+
+          #CALL HELPER FUNCTION TO CREATE TENSORFLOW DATASET
+          TESTING_DS = helperfunc_create_dataset(TESTING_DATA, shuffle=False, batch_size=BATCH_SIZE)
+
+          #EVALUATE MODEL WITH TEST DATA
+          loss, accuracy = reloaded_model.evaluate(TESTING_DS)
+
+          #PRINT ACCURACY METRIC
+          print("Accuracy", accuracy)
+
+      import argparse
+      _parser = argparse.ArgumentParser(prog='Evaluate validate model', description='')
+      _parser.add_argument("--saved-model", dest="saved_model", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--test-dataset", dest="test_dataset", type=str, required=True, default=argparse.SUPPRESS)
+      _parsed_args = vars(_parser.parse_args())
+
+      _outputs = evaluate_validate_model(**_parsed_args)
+    args:
+    - --saved-model
+    - {inputValue: saved_model}
+    - --test-dataset
+    - {inputValue: test_dataset}
